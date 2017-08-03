@@ -1,0 +1,47 @@
+实现云主机之间文件共享的几条命令
+首先要在云主机控制台将硬盘挂载在canu主机上
+
+1、硬盘挂载在云主机
+fdisk -l  查看所有的硬盘
+其中dev/vdb 为5Tb,是要挂载的硬盘，此时的硬盘没有操作系统，无法挂载
+使用mkfs命令对硬盘进行格式化
+# mkfs -t ext4 -c /dev/vdb //使用nohup后台运行，运行结果在nohup.out可以看到
+运行完之后使用df -T /dev/vdb 查看格式化结果
+
+在home目录下创建stroage文件夹
+mkdir storage/  要设置拥有者slurm，权限777
+[slurm@canu ~]$ df -T /dev/vdb
+Filesystem     Type  1K-blocks   Used  Available Use% Mounted on
+/dev/vdb       ext4 5160612368 193664 4898274704   1% /home/slurm/storage
+
+sudo mount /dev/vdb ~/storage 挂载
+
+2.安装samba软件
+sudo yum install samba samba-client samba-swat //安装samba软件从而实现文件共享
+安装完安置后需要配置samba文件配置
+cd /etc/samba
+sudo vim smb.conf
+
+
+在配置文件最后加入slurm用户组，其他配置不更改
+[slurm]
+path = /home/slurm/storage
+available = yes
+browseable = yes
+public = no
+writable = yes
+comment = slurm share
+
+然后需要在samba加上slurm用户并设置密码
+smbpasswd -a slurm
+此时就完成了samba的所有设置 
+
+3、切换到slave节点，进行共享
+ssh slurm-1
+mkdir storage/
+chmod 777 storage/
+sudo mount -t cifs -o username=slurm,pass=elwg324,noperm //192.168.73.249/slurm /home/slurm/storage  这条命令就可以硬盘在slurm—1下的slurm/storage/也实现挂载
+cd storage/ 
+ls 就可以看到共享文件
+
+4、ssh到其他slave节点进行配置
